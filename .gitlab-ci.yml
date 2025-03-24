@@ -1,0 +1,49 @@
+stages:
+  - build
+  - style
+  - test
+  - deploy
+
+build_project:
+  stage: build
+  script:
+    - rm -rf artifacts
+    - mkdir artifacts
+    - (cd src/cat && make)
+    - (cd src/grep && make s21_grep)
+    - cp src/cat/s21_cat src/grep/s21_grep artifacts
+  artifacts:
+    paths:
+      - artifacts
+    expire_in: 30 days
+  after_script:
+    - bash src/build_teleg.sh
+
+Style_test:
+  stage: style
+  script:
+    - cp materials/linters/.clang-format src/cat
+    - cp materials/linters/.clang-format src/grep
+    - clang-format -n --Werror src/cat/*.[ch]
+    - clang-format -n --Werror src/grep/*.[ch]
+    - rm -rf src/cat/.clang-format src/grep/.clang-format
+  after_script:
+    - bash src/style_teleg.sh
+  allow_failure: false
+
+Test_project:
+  stage: test
+  script:
+    - cd src/cat && make && bash cat.sh
+    - cd ../grep && make && bash grep.sh
+  after_script:
+    - bash src/test_teleg.sh
+  allow_failure: false
+
+Deploy:
+  stage: deploy
+  script:
+    - bash src/deploy.sh
+  after_script:
+    - bash src/si_teleg.sh
+  when: manual
